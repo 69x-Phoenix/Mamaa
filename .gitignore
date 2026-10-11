@@ -1,0 +1,21 @@
+# Secrets - NEVER commit these
+.env
+.streamlit/secrets.toml
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# Runtime data
+data/*.db
+workspace/*/*
+!workspace/*/.gitkeep
+logs/
+
+# Backups, archives, reports
+*.zip
+*.before-*
+mama_report*.txt
