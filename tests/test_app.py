@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 from streamlit.testing.v1 import AppTest
@@ -9,6 +10,7 @@ def test_app_starts_without_api_key_and_shows_clear_error(monkeypatch):
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     monkeypatch.delenv("APP_PASSWORD", raising=False)
     monkeypatch.setattr("dotenv.load_dotenv", lambda *a, **k: False)
+    monkeypatch.setattr("config._get", lambda name, default="": os.environ.get(name) or default)  # ignore local secrets.toml
     at = AppTest.from_file(APP, default_timeout=30).run()
     assert not at.exception
     assert any("GEMINI_API_KEY" in e.value for e in at.error)

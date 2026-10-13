@@ -6,6 +6,7 @@ from pathlib import Path
 from tools.calculator import CALCULATOR
 from tools.files import make_file_tools
 from tools.documents import make_document_tools
+from tools.analysis_tools import make_analysis_tools
 from tools.registry import Permission, ToolError, ToolRegistry, ToolSpec
 from tools.system_tools import CURRENT_DATETIME
 from tools.web_search import make_web_search
@@ -21,6 +22,8 @@ def build_registry(workspace: Path, search_fn=None) -> ToolRegistry:
     for spec in make_file_tools(workspace):
         registry.register(spec)
     for spec in make_document_tools(workspace):
+        registry.register(spec)
+    for spec in make_analysis_tools(workspace):
         registry.register(spec)
     if search_fn is not None:
         registry.register(make_web_search(search_fn))
