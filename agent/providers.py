@@ -62,10 +62,13 @@ class GeminiProvider(BaseModelProvider):
         self.model = model
 
     # ----- message builders -------------------------------------------------
-    def user_message(self, text: str) -> Any:
+    def user_message(self, text: str, images: list[tuple[bytes, str]] | None = None) -> Any:
         from google.genai import types
 
-        return types.Content(role="user", parts=[types.Part.from_text(text=text)])
+        parts = [types.Part.from_text(text=text)]
+        for data, mime in images or []:
+            parts.append(types.Part.from_bytes(data=data, mime_type=mime))
+        return types.Content(role="user", parts=parts)
 
     def model_message(self, text: str) -> Any:
         from google.genai import types
