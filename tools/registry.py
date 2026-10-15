@@ -72,7 +72,7 @@ class ToolRegistry:
             return {"ok": False, "error": f"Bad arguments. missing={missing} unexpected={unknown}"}
 
         if spec.permission is Permission.CONFIRM_REQUIRED and not (confirm and confirm(spec, args)):
-            return {"ok": False, "error": "This action needs the user's explicit confirmation and was NOT run."}
+            return {"ok": False, "error": "This action needs the user's explicit approval. An approval card is now shown to the user; the action was NOT run. Do not retry it. Tell the user what is waiting for approval."}
 
         future = _POOL.submit(spec.func, **args)
         try:

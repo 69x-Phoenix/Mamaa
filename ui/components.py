@@ -8,7 +8,7 @@ from pathlib import Path
 import streamlit as st
 
 from agent.core import AgentEvent
-from ui import state
+from ui import attachments, state
 from ui.mascots import BSOD_URI, NULL_SIGNAL_URI
 from ui.tips import TIPS
 
@@ -22,6 +22,11 @@ ACTIVITY_LABELS = {
     "list_files": "Reading files...",
     "read_text_file": "Reading files...",
     "write_text_file": "Creating file...",
+    "read_pdf": "Reading the PDF...",
+    "inspect_table": "Inspecting the table...",
+    "query_table": "Analysing the table...",
+    "create_pptx": "Building the presentation...",
+    "create_docx": "Writing the document...",
 }
 
 LOGO_HTML = (
@@ -170,8 +175,53 @@ def render_chat_area() -> None:
 
 # ------------------------------------------------------------ command box
 def render_command_box() -> str | None:
-    """The input stays Streamlit's own st.chat_input (pinned to the bottom, styled by CSS)."""
-    return st.chat_input("Ask MAMA anything...")
+    """st.chat_input with attachments. Attached files wait in session state until the user approves them."""
+    value = st.chat_input("Ask MAMA anything...", **attachments.attach_kwargs())
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return value
+    files = list(value["files"]) if "files" in value else []
+    if files:
+        st.session_state["new_files"] = [(f.name, f.getvalue()) for f in files]
+    return (value["text"] or "").strip() or (attachments.DEFAULT_REQUEST if files else None)
+
+
+def render_attachment_approval(pending: dict) -> str | None:
+    """Ask before anything is saved or sent. Returns "send", "cancel" or None."""
+    with st.container(key="attach-approval"):
+        st.html('<div class="mama-panel-title">Approve these files?</div>')
+        st.markdown("\n".join(f"- {html.escape(str(name))}" for name, _ in pending["files"]))
+        st.caption(
+            "PDF, CSV and Excel files are saved in this session's workspace, and the parts MAMA reads are sent to Gemini "
+            "to answer you. Images are sent to Gemini once and are not saved. On the free Gemini tier, Google may use "
+            "inputs to improve its products, so avoid private files."
+        )
+        left, right = st.columns(2)
+        send = left.button("Approve and send", key="attach_send", icon=":material/check:", type="primary", use_container_width=True)
+        cancel = right.button("Cancel", key="attach_cancel", icon=":material/close:", use_container_width=True)
+    return "send" if send else "cancel" if cancel else None
+
+
+def render_pending_actions(agent) -> tuple[str, str] | None:
+    """Approval cards for file-creating actions. Returns (action_id, "approve" | "reject") when a button is clicked."""
+    queue = getattr(agent, "approvals", None)
+    if queue is None:
+        return None
+    decision = None
+    for action in queue.items():
+        with st.container(key=f"approval-{action.id}"):
+            st.html('<div class="mama-panel-title">Approval needed</div>')
+            st.markdown(f"**{action.title}**")
+            with st.expander("Details"):
+                st.text("\n".join(action.details))
+            st.caption("Nothing is created until you approve. Approving runs exactly this action, once.")
+            left, right = st.columns(2)
+            if left.button("Approve", key=f"approve_{action.id}", icon=":material/check:", type="primary", use_container_width=True):
+                decision = (action.id, "approve")
+            if right.button("Reject", key=f"reject_{action.id}", icon=":material/close:", use_container_width=True):
+                decision = (action.id, "reject")
+    return decision
 
 
 def activity_callback(status) -> "callable":
