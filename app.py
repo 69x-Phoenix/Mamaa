@@ -6,6 +6,7 @@ import hmac
 import streamlit as st
 
 from agent.factory import build_agent
+from agent.permissions import run_approved
 from config import get_settings, setup_logging
 from ui import components as ui
 from ui import attachments, state
@@ -42,6 +43,9 @@ def output_files() -> dict[str, float]:
 def handle_prompt(agent, prompt: str, files: list[tuple[str, bytes]] | None = None) -> None:
     """Run one request through the existing agent and store the result."""
     chat = st.session_state.chat
+    approvals = getattr(agent, "approvals", None)
+    if approvals is not None:
+        approvals.clear()  # stale approvals never carry over to a new request
     prepared = attachments.prepare(files or [], settings.workspace_dir / "input")  # only reached after approval
     user_msg = {"role": "user", "content": prompt + attachments.display_suffix(prepared), "files": []}
     idx = len(chat)
@@ -64,6 +68,26 @@ def handle_prompt(agent, prompt: str, files: list[tuple[str, bytes]] | None = No
     state.save_current()  # persist to SQLite so it shows up in chat history
     st.session_state.tip_offset += 1  # new tip after each interaction
     st.rerun()  # redraw from state so usage counters and history are fresh
+
+
+def handle_approval(agent, action_id: str, choice: str) -> None:
+    """Run (or drop) one waiting file action. Only the exact approved action runs, once."""
+    action = agent.approvals.take(action_id)
+    if action is None:
+        st.rerun()
+    if choice == "approve":
+        outcome = run_approved(agent.registry, action)
+        if outcome["ok"]:
+            saved = str(outcome["result"].get("saved", ""))
+            files = [str(settings.workspace_dir / saved)] if saved else []
+            note = {"role": "assistant", "content": f"✅ Created `{saved}` (approved by you).", "files": files}
+        else:
+            note = {"role": "assistant", "content": f"⚠️ Could not create the file: {outcome['error']}", "files": []}
+    else:
+        note = {"role": "assistant", "content": f"Rejected: {action.title}. Nothing was created.", "files": []}
+    st.session_state.chat.append(note)
+    state.save_current()
+    st.rerun()
 
 
 # ------------------------------------------------------------------ main flow
@@ -101,3 +125,6 @@ if pending:
     elif decision == "send":
         st.session_state.pop("pending_send", None)
         handle_prompt(agent, pending["text"], pending["files"])
+approval = ui.render_pending_actions(agent)
+if approval:
+    handle_approval(agent, *approval)

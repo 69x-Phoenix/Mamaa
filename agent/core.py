@@ -57,6 +57,9 @@ class Agent:
     def reset(self) -> None:
         self.messages.clear()
         self._turn_starts.clear()
+        approvals = getattr(self, "approvals", None)
+        if approvals is not None:
+            approvals.clear()  # approvals never outlive the conversation they were asked in
 
     def restore(self, transcript: list[dict]) -> None:
         self.reset()

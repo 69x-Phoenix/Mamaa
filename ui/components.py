@@ -203,6 +203,27 @@ def render_attachment_approval(pending: dict) -> str | None:
     return "send" if send else "cancel" if cancel else None
 
 
+def render_pending_actions(agent) -> tuple[str, str] | None:
+    """Approval cards for file-creating actions. Returns (action_id, "approve" | "reject") when a button is clicked."""
+    queue = getattr(agent, "approvals", None)
+    if queue is None:
+        return None
+    decision = None
+    for action in queue.items():
+        with st.container(key=f"approval-{action.id}"):
+            st.html('<div class="mama-panel-title">Approval needed</div>')
+            st.markdown(f"**{action.title}**")
+            with st.expander("Details"):
+                st.text("\n".join(action.details))
+            st.caption("Nothing is created until you approve. Approving runs exactly this action, once.")
+            left, right = st.columns(2)
+            if left.button("Approve", key=f"approve_{action.id}", icon=":material/check:", type="primary", use_container_width=True):
+                decision = (action.id, "approve")
+            if right.button("Reject", key=f"reject_{action.id}", icon=":material/close:", use_container_width=True):
+                decision = (action.id, "reject")
+    return decision
+
+
 def activity_callback(status) -> "callable":
     """Turn agent events into short, friendly lines inside the status box (no chain-of-thought)."""
     def on_event(ev: AgentEvent) -> None:
