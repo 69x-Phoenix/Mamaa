@@ -6,7 +6,7 @@ from typing import Any
 
 from tools.registry import Permission, ToolError, ToolSpec
 
-READABLE = {".txt", ".md", ".csv", ".json", ".py", ".log"}
+READABLE = {".txt", ".md", ".csv", ".json", ".py", ".log", ".js", ".html", ".css"}
 MAX_LIST = 200
 MAX_WRITE_CHARS = 200_000
 

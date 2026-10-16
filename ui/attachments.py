@@ -13,7 +13,7 @@ from pathlib import Path
 
 from agent import file_analysis as fa
 
-ATTACH_TYPES = ["pdf", "png", "jpg", "jpeg", "csv", "xlsx"]
+ATTACH_TYPES = ["pdf", "png", "jpg", "jpeg", "csv", "xlsx", "txt", "md", "py", "js", "html", "css", "json"]
 MAX_FILES = 5
 MAX_IMAGES = 3
 UPLOAD_LIMIT_MB = 15
@@ -82,7 +82,7 @@ def prepare(files: list[tuple[str, bytes]], input_dir: Path) -> Prepared:
                 continue
             if suffix == ".pdf":
                 fa.read_pdf(data, 1, 1)  # readable, not encrypted, not too long
-            else:
+            elif suffix in fa.TABLE_EXTENSIONS:
                 fa.load_table(data, suffix)  # parses as a table
             input_dir.mkdir(parents=True, exist_ok=True)
             target = unique_path(input_dir, safe_input_name(label))
@@ -104,7 +104,8 @@ def agent_text(prompt: str, prepared: Prepared) -> str:
     """The request the agent sees: the user's text plus a short note about the attachments."""
     notes = []
     for path in prepared.saved:
-        use = "read_pdf" if path.lower().endswith(".pdf") else "inspect_table, then query_table"
+        lower = path.lower()
+        use = "read_pdf" if lower.endswith(".pdf") else "inspect_table, then query_table" if lower.endswith((".csv", ".xlsx")) else "read_text_file"
         notes.append(f"- {path} (use {use})")
     if prepared.image_names:
         notes.append("- Image(s) attached directly to this message: " + ", ".join(prepared.image_names))
