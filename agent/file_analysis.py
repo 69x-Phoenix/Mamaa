@@ -24,7 +24,9 @@ MAX_IMAGE_PIXELS = 25_000_000
 PDF_EXTENSIONS = {".pdf"}
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg"}
 TABLE_EXTENSIONS = {".csv", ".xlsx"}
-SUPPORTED_EXTENSIONS = PDF_EXTENSIONS | IMAGE_EXTENSIONS | TABLE_EXTENSIONS
+TEXT_EXTENSIONS = {".txt", ".md", ".py", ".js", ".html", ".css", ".json"}
+MAX_TEXT_FILE_BYTES = 1024 * 1024  # 1 MB for text and code files
+SUPPORTED_EXTENSIONS = PDF_EXTENSIONS | IMAGE_EXTENSIONS | TABLE_EXTENSIONS | TEXT_EXTENSIONS
 
 FILTER_OPS = {"==", "!=", ">", ">=", "<", "<=", "contains"}
 AGGREGATES = {"count", "sum", "mean", "min", "max"}
@@ -44,7 +46,7 @@ def _signature_ok(suffix: str, data: bytes) -> bool:
         return data.startswith(b"\xff\xd8\xff")
     if suffix == ".xlsx":
         return data.startswith(b"PK\x03\x04")
-    if suffix == ".csv":
+    if suffix == ".csv" or suffix in TEXT_EXTENSIONS:
         return b"\x00" not in data[:4096]
     return False
 
@@ -58,6 +60,8 @@ def validate_upload(filename: str, data: bytes) -> str:
         raise FileAnalysisError("The file is empty.")
     if len(data) > MAX_FILE_BYTES:
         raise FileAnalysisError(f"File exceeds the {MAX_FILE_BYTES // (1024 * 1024)} MB limit.")
+    if suffix in TEXT_EXTENSIONS and len(data) > MAX_TEXT_FILE_BYTES:
+        raise FileAnalysisError("Text and code files are limited to 1 MB.")
     if not _signature_ok(suffix, data):
         raise FileAnalysisError(f"The content does not look like a real {suffix} file.")
     return suffix
@@ -318,5 +322,7 @@ def inspect_upload(filename: str, data: bytes) -> dict[str, Any]:
         return {"kind": "pdf", "pages": probe["total_pages"], "needs_ocr": probe["needs_ocr"]}
     if suffix in IMAGE_EXTENSIONS:
         return inspect_image(data)
+    if suffix in TEXT_EXTENSIONS:
+        return {"kind": "text", "chars": len(data.decode("utf-8", errors="replace"))}
     frame, info = load_table(data, suffix)
     return summarize_table(frame, info)

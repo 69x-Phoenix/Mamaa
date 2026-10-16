@@ -1,9 +1,10 @@
 import pytest
 from docx import Document
 from pptx import Presentation
+from pptx.util import Inches
 
 from tools import build_registry
-from tools.documents import BANGLA_FONT
+from tools.documents import BANGLA_FONT, _fit_size
 
 
 @pytest.fixture
@@ -11,6 +12,10 @@ def reg(tmp_path):
     (tmp_path / "input").mkdir()
     (tmp_path / "output").mkdir()
     return build_registry(tmp_path)
+
+
+def _texts(slide):
+    return [sh.text_frame.text for sh in slide.shapes if sh.has_text_frame]
 
 
 def test_pptx_roundtrip_with_bangla(reg, tmp_path):
@@ -28,6 +33,32 @@ def test_pptx_roundtrip_with_bangla(reg, tmp_path):
     assert prs.slides[1].notes_slide.notes_text_frame.text == "speaker note"
     runs = [r for sh in prs.slides[2].shapes if sh.has_text_frame for p in sh.text_frame.paragraphs for r in p.runs]
     assert any(r.font.name == BANGLA_FONT for r in runs)
+
+
+@pytest.mark.parametrize("theme", ["academic", "modern"])
+def test_pptx_design_features(reg, tmp_path, theme):
+    res = reg.execute("create_pptx", {
+        "filename": f"deck_{theme}", "title": "Cover", "subtitle": "Sub", "theme": theme, "closing": "ধন্যবাদ",
+        "slides": [{"title": "S1", "bullets": ["x"], "highlight": "KEY FACT 70%"}, {"title": "S2", "bullets": ["y"]}],
+    })
+    assert res["ok"], res
+    assert res["result"]["slides"] == 4 and res["result"]["theme"] == theme
+    prs = Presentation(str(tmp_path / "output" / f"deck_{theme}.pptx"))
+    assert prs.slide_width == Inches(13.333) and prs.slide_height == Inches(7.5)
+    assert "KEY FACT 70%" in _texts(prs.slides[1])
+    assert "ধন্যবাদ" in _texts(prs.slides[3])
+    assert "2" in _texts(prs.slides[1]) and "3" in _texts(prs.slides[2])  # slide numbers
+
+
+def test_unknown_theme_rejected(reg):
+    res = reg.execute("create_pptx", {"filename": "t", "title": "T", "theme": "neon", "slides": [{"title": "S"}]})
+    assert not res["ok"] and "Unknown theme" in res["error"]
+
+
+def test_fit_size_shrinks_for_more_text():
+    short = _fit_size(["a short line"] * 3, 11.5, 4.85)
+    long = _fit_size(["x" * 150] * 8, 7.9, 4.85)
+    assert short > long >= 14
 
 
 def test_docx_roundtrip(reg, tmp_path):

@@ -27,6 +27,7 @@ ACTIVITY_LABELS = {
     "query_table": "Analysing the table...",
     "create_pptx": "Building the presentation...",
     "create_docx": "Writing the document...",
+    "create_xlsx": "Building the spreadsheet...",
 }
 
 LOGO_HTML = (

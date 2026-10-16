@@ -59,6 +59,14 @@ def describe_action(tool: str, args: dict[str, Any]) -> tuple[str, list[str]]:
         sections = args.get("sections") if isinstance(args.get("sections"), list) else []
         heads = [str(s.get("heading", "")) if isinstance(s, dict) else str(s) for s in sections[:12]]
         return f"Create Word document: {name}", [f"{len(sections)} sections"] + [f"- {h[:90]}" for h in heads]
+    if tool == "create_xlsx":
+        sheets = args.get("sheets") if isinstance(args.get("sheets"), list) else []
+        info = []
+        for sheet in sheets[:10]:
+            if isinstance(sheet, dict):
+                rows = sheet.get("rows") if isinstance(sheet.get("rows"), list) else []
+                info.append(f"- {str(sheet.get('name', 'Sheet'))[:60]}: {len(rows)} rows")
+        return f"Create Excel workbook: {name}", [f"{len(sheets)} sheets"] + info
     if tool == "write_text_file":
         content = str(args.get("content", ""))
         preview = content[:400] + ("..." if len(content) > 400 else "")
