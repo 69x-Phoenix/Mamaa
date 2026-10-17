@@ -8,3 +8,4 @@ pypdf
 pandas
 openpyxl
 Pillow
+httpx>=0.27
