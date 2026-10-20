@@ -19,3 +19,6 @@ logs/
 *.zip
 *.before-*
 mama_report*.txt
+
+# Editor settings
+.vscode/
