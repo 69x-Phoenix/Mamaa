@@ -63,6 +63,7 @@ def render_usage_panel(agent) -> None:
         ("Tasks", stats["tasks"]),
         ("Tool Calls", stats["tool_calls"]),
         ("Gemini API Calls", getattr(agent.provider, "api_calls", 0)),
+        ("Memory", getattr(agent.memory, "backend_label", "Local")),
     ]
     body = "".join(f'<div class="mama-usage-row"><span>{label}</span><b>{value}</b></div>' for label, value in rows)
     st.html(

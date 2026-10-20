@@ -49,10 +49,16 @@ class Settings:
     log_level: str
     workspace_dir: Path
     db_path: Path
+    turso_url: str = ""
+    turso_token: str = ""
 
     @property
     def output_dir(self) -> Path:
         return self.workspace_dir / "output"
+
+    def remote_db(self) -> tuple[str, str] | None:
+        """(url, token) of the hosted database when both are set; otherwise None and a local file is used."""
+        return (self.turso_url, self.turso_token) if self.turso_url and self.turso_token else None
 
 
 def get_settings() -> Settings:
@@ -70,6 +76,8 @@ def get_settings() -> Settings:
         log_level=_get("LOG_LEVEL", "INFO").upper(),
         workspace_dir=workspace,
         db_path=db_path,
+        turso_url=_get("TURSO_DATABASE_URL"),
+        turso_token=_get("TURSO_AUTH_TOKEN"),
     )
 
 
