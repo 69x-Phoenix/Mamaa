@@ -22,6 +22,8 @@ from tools.registry import Permission, ToolRegistry, ToolSpec
 READ_ONLY_TOOLS = frozenset({
     "calculator", "current_datetime", "list_files", "read_text_file",
     "web_search", "read_pdf", "inspect_table", "query_table",
+    "position_size", "risk_reward", "liquidation_estimate", "pnl_calculator", "portfolio_risk",
+    "daily_limit_check", "trade_stats", "journal_list", "journal_stats",
 })
 
 
@@ -67,6 +69,12 @@ def describe_action(tool: str, args: dict[str, Any]) -> tuple[str, list[str]]:
                 rows = sheet.get("rows") if isinstance(sheet.get("rows"), list) else []
                 info.append(f"- {str(sheet.get('name', 'Sheet'))[:60]}: {len(rows)} rows")
         return f"Create Excel workbook: {name}", [f"{len(sheets)} sheets"] + info
+    if tool == "journal_add":
+        lines = [f"entry {args.get('entry')}", f"stop loss {args.get('stop_loss')}", f"take profit {args.get('take_profit')}",
+                 f"exit {args.get('exit_price')}", f"size {args.get('size')}", f"pnl {args.get('pnl')}", str(args.get("notes", ""))[:200]]
+        return f"Save trade to journal: {str(args.get('symbol', '')).upper()} {args.get('side', '')}", [x for x in lines if not x.endswith("None") and x]
+    if tool == "journal_delete":
+        return f"Delete journal trade #{args.get('trade_id')}", ["This removes the trade from your saved journal."]
     if tool == "write_text_file":
         content = str(args.get("content", ""))
         preview = content[:400] + ("..." if len(content) > 400 else "")

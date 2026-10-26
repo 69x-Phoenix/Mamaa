@@ -44,7 +44,23 @@ CREATE TABLE IF NOT EXISTS conversations (
     title TEXT NOT NULL,
     transcript TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS journal (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    side TEXT NOT NULL,
+    entry REAL NOT NULL,
+    exit_price REAL,
+    stop_loss REAL,
+    take_profit REAL,
+    size REAL,
+    risk_amount REAL,
+    pnl REAL,
+    r_multiple REAL,
+    notes TEXT
+);
 """
+_JOURNAL_FIELDS = ("symbol", "side", "entry", "exit_price", "stop_loss", "take_profit", "size", "risk_amount", "pnl", "r_multiple", "notes")
 
 
 def _now() -> str:
@@ -209,6 +225,36 @@ class Memory:
         self._cache.clear()
         with closing(self._connect()) as con, con:
             con.execute("DELETE FROM conversations WHERE id=?", (conv_id,))
+
+    # ------------------------------------------------------------- journal
+    @_resilient
+    def journal_add(self, trade: dict[str, Any]) -> int:
+        """Save one trade. The trading journal is separate from chat history and is NOT removed by clear()."""
+        self._cache.clear()
+        values = [trade.get(name) for name in _JOURNAL_FIELDS]
+        with closing(self._connect()) as con, con:
+            cur = con.execute(
+                "INSERT INTO journal (created_at, " + ", ".join(_JOURNAL_FIELDS) + ") VALUES (?" + ",?" * len(_JOURNAL_FIELDS) + ")",
+                (_now(), *values),
+            )
+            return int(cur.lastrowid)
+
+    @_resilient
+    def journal_list(self, limit: int = 50) -> list[dict[str, Any]]:
+        """Newest first."""
+        with closing(self._connect()) as con:
+            rows = con.execute(
+                "SELECT id, created_at, " + ", ".join(_JOURNAL_FIELDS) + " FROM journal ORDER BY id DESC LIMIT ?", (int(limit),)
+            ).fetchall()
+        names = ("id", "created_at") + _JOURNAL_FIELDS
+        return [dict(zip(names, row)) for row in rows]
+
+    @_resilient
+    def journal_delete(self, trade_id: int) -> bool:
+        self._cache.clear()
+        with closing(self._connect()) as con, con:
+            cur = con.execute("DELETE FROM journal WHERE id=?", (int(trade_id),))
+            return (cur.rowcount or 0) > 0
 
     # --------------------------------------------------------------- admin
     @_resilient

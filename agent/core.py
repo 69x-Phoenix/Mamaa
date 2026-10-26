@@ -60,6 +60,9 @@ class Agent:
         approvals = getattr(self, "approvals", None)
         if approvals is not None:
             approvals.clear()  # approvals never outlive the conversation they were asked in
+        router = getattr(self, "router", None)
+        if router is not None:
+            router.reset()
 
     def restore(self, transcript: list[dict]) -> None:
         self.reset()
@@ -70,6 +73,11 @@ class Agent:
             elif item.get("role") == "assistant" and self._turn_starts:
                 self.messages.append(self.provider.model_message(item["content"]))
         self._trim_history()
+
+    def _active_specs(self, user_text: str):
+        """Tools offered for this request (smart routing; falls back to every tool)."""
+        router = getattr(self, "router", None)
+        return router.select(user_text) if router is not None else self.registry.specs()
 
     def _trim_history(self) -> None:
         """Drop the oldest whole turns (keeps tool-call/response pairs intact)."""
@@ -107,7 +115,7 @@ class Agent:
         try:
             for steps in range(1, self.max_steps + 1):
                 emit("thinking", "Planning..." if steps == 1 else "Reviewing results...")
-                reply = self.provider.generate(self.messages, SYSTEM_PROMPT, self.registry.specs())
+                reply = self.provider.generate(self.messages, SYSTEM_PROMPT, self._active_specs(user_text))
                 if reply.raw is not None:
                     self.messages.append(reply.raw)
                 if not reply.tool_calls:

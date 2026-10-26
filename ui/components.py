@@ -108,6 +108,8 @@ def render_settings_panel(agent, settings) -> None:
     )
     tools = "".join(f"<div class='mama-note'>• {html.escape(s.name)} · {s.permission.value}</div>" for s in agent.registry.specs())
     st.html(f'<div class="mama-panel-title" style="margin-top:12px">Tools</div>{tools}')
+    st.radio("Tools", ["Auto", "All tools"], key="tool_mode", horizontal=True,
+             help="Auto sends only the tools a request needs (faster and cheaper). Choose All tools if MAMA says a tool is missing.")
     st.button("Clear conversation", icon=":material/chat_bubble:", key="clr_conv", on_click=state.clear_conversation, use_container_width=True)
     if st.session_state.confirm_clear_memory:
         st.html('<div class="mama-note">This deletes all saved tasks, tool history and conversations.</div>')
