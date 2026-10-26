@@ -46,6 +46,9 @@ def handle_prompt(agent, prompt: str, files: list[tuple[str, bytes]] | None = No
     approvals = getattr(agent, "approvals", None)
     if approvals is not None:
         approvals.clear()  # stale approvals never carry over to a new request
+    router = getattr(agent, "router", None)
+    if router is not None:
+        router.mode = "all" if st.session_state.get("tool_mode") == "All tools" else "auto"
     prepared = attachments.prepare(files or [], settings.workspace_dir / "input")  # only reached after approval
     user_msg = {"role": "user", "content": prompt + attachments.display_suffix(prepared), "files": []}
     idx = len(chat)
@@ -80,7 +83,8 @@ def handle_approval(agent, action_id: str, choice: str) -> None:
         if outcome["ok"]:
             saved = str(outcome["result"].get("saved", ""))
             files = [str(settings.workspace_dir / saved)] if saved else []
-            note = {"role": "assistant", "content": f"✅ Created `{saved}` (approved by you).", "files": files}
+            message = str(outcome["result"].get("message", "")) or f"✅ Created `{saved}` (approved by you)."
+            note = {"role": "assistant", "content": message, "files": files}
         else:
             note = {"role": "assistant", "content": f"⚠️ Could not create the file: {outcome['error']}", "files": []}
     else:
